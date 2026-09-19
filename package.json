@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "vite build",
+    "pack": "vite build && rm -f dist/dist.zip dist.zip && zip -r -X -q dist.zip dist && cp -f dist.zip public/dist.zip",
     "preview": "vite preview --host 0.0.0.0 --port 3000"
   },
   "repository": {
