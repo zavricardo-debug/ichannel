@@ -303,6 +303,55 @@ export function ChannelManagerProvider({ children }) {
     return targetDates.length;
   };
 
+  // Import blocked dates from an Airbnb iCal export.
+  //
+  // Airbnb's calendar feeds don't send CORS headers, so the browser can't
+  // fetch them directly: the POST goes to the /api/import-airbnb Cloudflare
+  // Pages Function, which fetches + parses the .ics server-side and returns a
+  // dateOverrides patch (DTEND exclusive, checkout nights stay sellable).
+  // The patch is merged cell-by-cell so existing price/minStay overrides on a
+  // night are preserved.
+  const importAirbnbCalendar = async (listingId, icalUrl) => {
+    try {
+      const res = await fetch('/api/import-airbnb', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listingId, icalUrl })
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.success) {
+        const error = data?.error || `Import failed (HTTP ${res.status}).`;
+        addAuditLog('airbnb', 'ICAL_IMPORT', `Airbnb iCal import failed for ${listingId}: ${error}`, 'error', res.status);
+        return { success: false, error };
+      }
+
+      const patch = data.dateOverrides || {};
+      setDateOverrides(prev => {
+        const next = { ...prev };
+        Object.entries(patch).forEach(([lId, dates]) => {
+          const merged = { ...(next[lId] || {}) };
+          Object.entries(dates).forEach(([dateKey, cell]) => {
+            merged[dateKey] = { ...(merged[dateKey] || {}), ...cell };
+          });
+          next[lId] = merged;
+        });
+        return next;
+      });
+
+      const listing = listings.find(l => l.id === listingId);
+      addAuditLog(
+        'airbnb',
+        'ICAL_IMPORT',
+        `Imported ${data.nightsBlocked} blocked night(s) from the Airbnb iCal feed into "${listing?.name || listingId}" (${data.eventsImported} reservation(s), ${data.eventsSkipped} skipped).`
+      );
+
+      return data;
+    } catch (err) {
+      return { success: false, error: err.message || 'Network error during import.' };
+    }
+  };
+
   // Full Channel Sync Simulation
   const triggerSync = async (specificChannel = null) => {
     setIsSyncing(true);
@@ -573,6 +622,7 @@ export function ChannelManagerProvider({ children }) {
         getDateStatus,
         updateDateOverride,
         bulkUpdateDates,
+        importAirbnbCalendar,
         triggerSync,
         testChannelConnection,
         updateChannel,

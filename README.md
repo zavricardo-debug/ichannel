@@ -105,6 +105,52 @@ npx wrangler pages deploy dist --project-name ichannel
 - `functions/api/sync.js`: Cloudflare Pages Function edge endpoint for OTA synchronization.
 - `functions/api/ical/[listingId].js`: Cloudflare Pages Function serving RFC 5545 iCalendar feeds.
 - `functions/api/channels.js`: Cloudflare Pages Function returning supported channel specs.
+- `functions/api/import-airbnb.js`: Cloudflare Pages Function for inbound Airbnb iCal import (server-side `.ics` fetch + parse).
+- `functions/lib/ical.js`: Shared RFC 5545 parser (line unfolding, VEVENT extraction, exclusive DTEND).
+
+---
+
+## 📥 Import from Airbnb (Inbound iCal)
+
+Airbnb's calendar export endpoints do **not** send CORS headers, so the browser cannot fetch them directly. The **Airbnb Import** button on each listing card (in *Properties & Listings*) opens a modal where you paste the Airbnb iCal export URL — it is `POST`ed to the `POST /api/import-airbnb` Cloudflare Pages Function, which fetches and parses the feed **server-side** and returns the blocked nights, which are merged into `dateOverrides` and immediately render as blocked in the multi-calendar.
+
+```bash
+curl -X POST https://ichannel.pages.dev/api/import-airbnb \
+  -H "Content-Type: application/json" \
+  -d '{"listingId":"prop-1","icalUrl":"https://www.airbnb.com/calendar/ical/883921.ics?s=xyz"}'
+```
+
+```json
+{
+  "success": true,
+  "listingId": "prop-1",
+  "eventsImported": 6,
+  "eventsSkipped": 1,
+  "nightsBlocked": 16,
+  "dateOverrides": {
+    "prop-1": {
+      "2026-09-20": { "blocked": true, "reason": "Airbnb: Reserved" },
+      "2026-09-21": { "blocked": true, "reason": "Airbnb: Reserved" }
+    }
+  }
+}
+```
+
+Behavior details:
+- **DTEND is exclusive (RFC 5545 §3.6.1)**: a stay `DTSTART 2026-09-20 → DTEND 2026-09-24` blocks the nights `2026-09-20`–`2026-09-23`; the checkout day stays sellable, so back-to-back reservations can share a turnover day.
+- Missing `DTEND` defaults to exactly one blocked night; `STATUS:CANCELLED` events are skipped; overlapping events are deduplicated (first summary wins as the block reason).
+- Merging preserves any existing per-night `price` / `minStay` overrides and writes an `ICAL_IMPORT` entry to the audit log.
+- The endpoint validates HTTPS-only URLs and rejects loopback/private/link-local hosts (SSRF guard), applies a 15s upstream timeout, and verifies the payload is a real `VCALENDAR`.
+- Where to find the URL: Airbnb → *Menu → Listings → Calendar → Availability → Calendar sync → Export calendar*.
+
+### Tests
+
+The parser and the endpoint are covered by a vitest suite with a realistic Airbnb iCal fixture (`test/fixtures/airbnb-export.ics`, CRLF + folded lines + back-to-back stays + a cancelled event + a missing-DTEND event + UTC datetimes):
+
+```bash
+npm test          # run once (vitest run)
+npm run test:watch
+```
 
 ---
 
@@ -122,6 +168,9 @@ npm run build
 
 # Preview production build locally
 npm run preview
+
+# Run the test suite (iCal parser + import endpoint)
+npm test
 ```
 
 ---
