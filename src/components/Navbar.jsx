@@ -60,6 +60,15 @@ export default function Navbar({ currentTab, setCurrentTab, onOpenBulkModal, onO
     { id: 'reservations', label: 'Reservations', icon: BookOpen }
   ];
 
+  const handleNavItemClick = (itemId) => {
+    if (itemId === 'bulk') {
+      onOpenBulkModal();
+      return;
+    }
+
+    setCurrentTab(itemId);
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800">
       {/* Top Banner: Channel Connectivity Pulse */}
@@ -128,7 +137,7 @@ export default function Navbar({ currentTab, setCurrentTab, onOpenBulkModal, onO
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Brand Logo */}
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 via-rose-500 to-amber-500 flex items-center justify-center shadow-lg shadow-rose-950/40">
               <Layers className="w-5 h-5 text-white" />
             </div>
@@ -146,21 +155,21 @@ export default function Navbar({ currentTab, setCurrentTab, onOpenBulkModal, onO
           </div>
 
           {/* Navigation Tabs */}
-          <nav className="flex items-center space-x-1">
+          <nav
+            aria-label="Primary navigation"
+            className="min-w-0 flex-1 overflow-x-auto flex items-center justify-center space-x-1 px-2"
+            style={{ scrollbarWidth: 'none' }}
+          >
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentTab === item.id;
               return (
                 <button
                   key={item.id}
-                  onClick={() => {
-                    if (item.id === 'bulk') {
-                      onOpenBulkModal();
-                    } else {
-                      setCurrentTab(item.id);
-                    }
-                  }}
-                  className={`relative flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                  type="button"
+                  aria-current={isActive ? 'page' : undefined}
+                  onClick={() => handleNavItemClick(item.id)}
+                  className={`relative flex shrink-0 items-center gap-2 px-3.5 py-2 rounded-lg whitespace-nowrap text-xs sm:text-sm font-medium transition-all ${
                     isActive
                       ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30 shadow-sm'
                       : item.highlight
@@ -184,7 +193,7 @@ export default function Navbar({ currentTab, setCurrentTab, onOpenBulkModal, onO
           </nav>
 
           {/* Right Action Buttons */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-2.5">
             {/* Sync All Channels Button */}
             <button
               onClick={() => triggerSync()}
