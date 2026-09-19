@@ -106,12 +106,20 @@ export default function Navbar({ currentTab, setCurrentTab, onOpenBulkModal, onO
         <div className="hidden lg:flex items-center gap-3 text-slate-400 text-[11px]">
           <span>Last full sync: <strong className="text-slate-200 font-mono">{lastSyncTime}</strong></span>
           <span className="text-slate-700">•</span>
+          <a
+            href="/dist.zip"
+            download="dist.zip"
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-md font-semibold transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Download dist.zip</span>
+          </a>
           <button
             onClick={() => onOpenDeployModal()}
-            className="flex items-center gap-1 text-amber-400 hover:text-amber-300 transition-colors"
+            className="flex items-center gap-1 text-slate-300 hover:text-white transition-colors"
           >
             <Cloud className="w-3.5 h-3.5" />
-            <span>Deploy to Cloudflare Pages</span>
+            <span>Deploy Guide</span>
           </button>
         </div>
       </div>
